@@ -268,7 +268,8 @@ body.dark .stat-icon.c-lime { background: rgba(74, 222, 128, .18); color: #86efa
 body.dark .stat-icon.c-blue { background: rgba(96, 165, 250, .18); color: #93c5fd; }
 body.dark .stat-icon.c-amber { background: rgba(251, 191, 36, .18); color: #fcd34d; }
 .stat-label { color: var(--muted); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; }
-.stat-value { margin-top: 4px; font-size: 27px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.stat-value { margin-top: 4px; font-size: 27px; font-weight: 800; font-variant-numeric: tabular-nums; display: inline-block; }
+.stat-value.bump { animation: popScale var(--dur) var(--bounce); }
 .stat-sub { margin-top: 4px; font-size: 12px; color: var(--muted); font-weight: 500; }
 
 .dashboard-grid { display: grid; grid-template-columns: 1fr 390px; gap: var(--space-4); margin-top: var(--space-4); align-items: start; }

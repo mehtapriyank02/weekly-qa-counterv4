@@ -673,13 +673,13 @@ function renderDashboard() {
       </header>
 
       <section class="stats-grid">
-        ${card("done", "Done", t.total, "Current table", "violet")}
-        ${card("target", "Target", t.target, "After fails", "fuchsia")}
-        ${card("hourglass", "Left", t.left, "Remaining", "cyan")}
-        ${card("alert", "Failed", t.fail, "Total failed count", "rose")}
-        ${card("users", "Agents", `${t.done}/${t.agents}`, "Complete", "lime")}
-        ${card("calendar", "MTD", state.personalMetrics.mtd, "Completed", "blue")}
-        ${card("calendarRange", "YTD", state.personalMetrics.ytd, "Completed", "amber")}
+        ${card("done", "Done", t.total, "Current table", "violet", "total")}
+        ${card("target", "Target", t.target, "After fails", "fuchsia", "target")}
+        ${card("hourglass", "Left", t.left, "Remaining", "cyan", "left")}
+        ${card("alert", "Failed", t.fail, "Total failed count", "rose", "fail")}
+        ${card("users", "Agents", `${t.done}/${t.agents}`, "Complete", "lime", "agents")}
+        ${card("calendar", "MTD", state.personalMetrics.mtd, "Completed", "blue", "mtd")}
+        ${card("calendarRange", "YTD", state.personalMetrics.ytd, "Completed", "amber", "ytd")}
       </section>
 
       <main class="dashboard-grid">
@@ -694,11 +694,11 @@ function renderDashboard() {
             ${table(rows)}
           </section>
           ${history()}
-          ${failHistoryPanel()}
+          <div id="failHistoryHost">${failHistoryPanel()}</div>
         </div>
         <aside class="side-stack">
           ${userNote()}
-          ${report()}
+          <div id="reportHost">${report()}</div>
           ${streaksPanel()}
           ${trendChartPanel()}
           ${leaveManager()}
@@ -722,9 +722,9 @@ function renderDashboard() {
   animateStatCards();
 }
 
-function card(iconName, label, value, sub, colorKey = "violet") {
+function card(iconName, label, value, sub, colorKey = "violet", statKey = "") {
   const numeric = typeof value === "number" || (typeof value === "string" && /^\d+$/.test(value));
-  const valueAttrs = numeric ? ` data-animate="true" data-value="${esc(value)}"` : "";
+  const valueAttrs = `${numeric ? ` data-animate="true"` : ""} data-value="${esc(value)}"${statKey ? ` data-stat="${statKey}"` : ""}`;
   return `<div class="stat-card"><div class="stat-icon c-${colorKey}">${icon(iconName, 18)}</div><div class="stat-label">${esc(label)}</div><div class="stat-value"${valueAttrs}>${numeric ? "0" : esc(value)}</div><div class="stat-sub">${esc(sub)}</div></div>`;
 }
 
@@ -746,15 +746,11 @@ function toolbar() {
   </div>`;
 }
 
-function table(rows) {
-  if (!rows.length) return `<div class="empty-state"><strong>No assigned agents found</strong>Check selected workstream, search, or admin assignments.</div>`;
-  return `<div class="table-wrap"><table class="qa-table">
-    <thead><tr><th>Agent</th><th>QA</th>${DAYS.map((d) => `<th>${d[0]}</th>`).join("")}<th>Total</th><th>Fail</th><th>Target</th><th>Left</th><th>Status</th></tr></thead>
-    <tbody>${rows.map((a) => {
-      const s = stats(a);
-      const cls = s.done ? "status-done" : s.left <= 2 ? "status-risk" : "status-pending";
-      const txt = s.done ? "Done" : s.left <= 2 ? "Almost" : "Pending";
-      return `<tr class="${s.done ? "done" : ""}">
+function rowHtml(a) {
+  const s = stats(a);
+  const cls = s.done ? "status-done" : s.left <= 2 ? "status-risk" : "status-pending";
+  const txt = s.done ? "Done" : s.left <= 2 ? "Almost" : "Pending";
+  return `<tr class="${s.done ? "done" : ""}" data-row="${a.id}">
         <td class="name-cell">${esc(a.agent?.name)}<span class="agent-sub">${esc(a.workstream?.name || "")}</span></td>
         <td>${qaBadge(a.qa?.name)}</td>
         ${DAYS.map((d) => `<td class="day-col"><div class="count-control">
@@ -768,8 +764,66 @@ function table(rows) {
         <td class="metric-strong">${s.left}</td>
         <td><span class="status-pill ${cls}">${txt}</span></td>
       </tr>`;
-    }).join("")}</tbody>
+}
+
+function table(rows) {
+  if (!rows.length) return `<div class="empty-state"><strong>No assigned agents found</strong>Check selected workstream, search, or admin assignments.</div>`;
+  return `<div class="table-wrap"><table class="qa-table">
+    <thead><tr><th>Agent</th><th>QA</th>${DAYS.map((d) => `<th>${d[0]}</th>`).join("")}<th>Total</th><th>Fail</th><th>Target</th><th>Left</th><th>Status</th></tr></thead>
+    <tbody>${rows.map(rowHtml).join("")}</tbody>
   </table></div>`;
+}
+
+// Patch a single row / the stat cards in place, instead of a full renderDashboard(),
+// so clicking +/- or a fail badge doesn't flash-rebuild the whole page.
+function bindRow(tr) {
+  tr.querySelectorAll(".js-action").forEach((b) => b.addEventListener("click", handleActionClick));
+}
+
+function updateRowDOM(id) {
+  const a = state.assignments.find((x) => x.id === id);
+  const tr = app.querySelector(`tr[data-row="${id}"]`);
+  if (!a || !tr) return false;
+  const wrap = document.createElement("tbody");
+  wrap.innerHTML = rowHtml(a);
+  const newTr = wrap.firstElementChild;
+  tr.replaceWith(newTr);
+  bindRow(newTr);
+  return true;
+}
+
+function bumpNumber(el, to) {
+  el.textContent = to;
+  el.dataset.value = to;
+  if (prefersReducedMotion()) return;
+  el.classList.remove("bump");
+  void el.offsetWidth;
+  el.classList.add("bump");
+}
+
+function updateStatCardsDOM() {
+  const t = totals(visibleAssignments());
+  const values = {
+    total: t.total,
+    target: t.target,
+    left: t.left,
+    fail: t.fail,
+    agents: `${t.done}/${t.agents}`,
+    mtd: state.personalMetrics.mtd,
+    ytd: state.personalMetrics.ytd
+  };
+  for (const [key, val] of Object.entries(values)) {
+    const el = app.querySelector(`.stat-value[data-stat="${key}"]`);
+    if (!el) continue;
+    if (typeof val === "number") bumpNumber(el, val); else el.textContent = val;
+  }
+  const reportHost = document.getElementById("reportHost");
+  if (reportHost) reportHost.innerHTML = report();
+}
+
+function updateFailHistoryDOM() {
+  const host = document.getElementById("failHistoryHost");
+  if (host) host.innerHTML = failHistoryPanel();
 }
 
 function failSelector(id, fail) {
@@ -1022,7 +1076,9 @@ async function changeDailyCount(id, date, delta) {
   if (!before.done && after.done) { fireConfetti(); showToast(`${a.agent?.name || "Agent"} hit target this week`); }
 
   await loadPersonalMetrics();
-  renderDashboard();
+  updateRowDOM(id);
+  updateStatCardsDOM();
+  renderTrendChart();
 }
 
 async function setFailCount(id, value) {
@@ -1041,7 +1097,10 @@ async function setFailCount(id, value) {
     const after = stats(a);
     if (!before.done && after.done) { fireConfetti(); showToast(`${a.agent?.name || "Agent"} hit target this week`); }
   }
-  renderDashboard();
+  updateRowDOM(id);
+  updateStatCardsDOM();
+  updateFailHistoryDOM();
+  renderTrendChart();
 }
 
 async function saveSettings(e) {
