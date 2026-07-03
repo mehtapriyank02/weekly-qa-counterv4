@@ -1,5 +1,5 @@
 const app = document.getElementById("app");
-const BUILD = "v910-clean-light";
+const BUILD = "v1000-vibrant";
 console.log("Weekly QA Counter", BUILD);
 
 // ---------- icon set (inline SVG, no emoji, currentColor so it themes for free) ----------
@@ -23,6 +23,60 @@ const ICONS = {
 function icon(name, size = 18) {
   const body = ICONS[name] || ICONS.check;
   return `<svg class="icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
+}
+
+// ---------- vibrant color system: consistent per-person color + avatars ----------
+
+const AVATAR_COLORS = ["#7C3AED", "#DB2777", "#0891B2", "#D97706", "#16A34A", "#E11D48", "#2563EB", "#9333EA"];
+
+function colorFor(name) {
+  return AVATAR_COLORS[hash(String(name || "")) % AVATAR_COLORS.length];
+}
+function initials(name) {
+  const parts = String(name || "?").trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "?";
+  return (parts[0][0] + (parts[1]?.[0] || "")).toUpperCase();
+}
+function qaBadge(name) {
+  if (!name) return `<span class="qa-badge"></span>`;
+  return `<span class="qa-badge"><span class="avatar" style="background:${colorFor(name)}">${esc(initials(name))}</span>${esc(name)}</span>`;
+}
+
+// ---------- count-up animation for stat cards ----------
+
+function prefersReducedMotion() {
+  return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+function animateValue(el, to) {
+  if (prefersReducedMotion() || !Number.isFinite(to)) { el.textContent = to; return; }
+  const from = 0;
+  const duration = 700;
+  const start = performance.now();
+  function tick(now) {
+    const p = Math.min((now - start) / duration, 1);
+    const eased = 1 - Math.pow(1 - p, 3);
+    el.textContent = Math.round(from + (to - from) * eased);
+    if (p < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+function animateStatCards() {
+  app.querySelectorAll(".stat-value[data-animate]").forEach((el) => {
+    animateValue(el, Number(el.dataset.value || 0));
+  });
+}
+
+// ---------- toast ----------
+
+function showToast(msg) {
+  const host = document.getElementById("toastHost");
+  if (!host) return;
+  const el = document.createElement("div");
+  el.className = "toast";
+  el.innerHTML = `${icon("done", 18)}<span>${esc(msg)}</span>`;
+  host.appendChild(el);
+  setTimeout(() => el.classList.add("out"), 2200);
+  setTimeout(() => el.remove(), 2600);
 }
 
 if (!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY || String(window.SUPABASE_ANON_KEY).includes("PASTE_")) {
@@ -536,18 +590,21 @@ function renderTrendChart() {
   const labels = weeks.map((w) => fmt(w));
   const byQa = qaWeeklyTotals();
   const qm = new Map(state.qaMembers.map((q) => [q.id, q]));
-  const palette = ["#38bdf8", "#f97316", "#a855f7", "#22c55e", "#ec4899", "#eab308"];
 
   let datasets = [];
   if (state.isAdmin) {
-    datasets = [...byQa.entries()].map(([qaId, weeksData], i) => {
+    datasets = [...byQa.entries()].map(([qaId, weeksData]) => {
       const map = new Map(weeksData.map((w) => [w.week_start, w.total]));
+      const name = qm.get(qaId)?.name || "Unknown";
       return {
-        label: qm.get(qaId)?.name || "Unknown",
+        label: name,
         data: weeks.map((w) => map.get(w) ?? 0),
-        borderColor: palette[i % palette.length],
-        backgroundColor: palette[i % palette.length],
-        tension: 0.3
+        borderColor: colorFor(name),
+        backgroundColor: colorFor(name),
+        tension: 0.35,
+        borderWidth: 3,
+        pointRadius: 3,
+        pointHoverRadius: 5
       };
     });
   } else if (state.currentQaMember) {
@@ -556,9 +613,12 @@ function renderTrendChart() {
     datasets = [{
       label: state.currentQaMember.name,
       data: weeks.map((w) => map.get(w) ?? 0),
-      borderColor: "#38bdf8",
-      backgroundColor: "#38bdf8",
-      tension: 0.3
+      borderColor: colorFor(state.currentQaMember.name),
+      backgroundColor: colorFor(state.currentQaMember.name),
+      tension: 0.35,
+      borderWidth: 3,
+      pointRadius: 3,
+      pointHoverRadius: 5
     }];
   }
 
@@ -613,13 +673,13 @@ function renderDashboard() {
       </header>
 
       <section class="stats-grid">
-        ${card("done", "Done", t.total, "Current table")}
-        ${card("target", "Target", t.target, "After fails")}
-        ${card("hourglass", "Left", t.left, "Remaining")}
-        ${card("alert", "Failed", t.fail, "Total failed count")}
-        ${card("users", "Agents", `${t.done}/${t.agents}`, "Complete")}
-        ${card("calendar", "MTD", state.personalMetrics.mtd, "Completed")}
-        ${card("calendarRange", "YTD", state.personalMetrics.ytd, "Completed")}
+        ${card("done", "Done", t.total, "Current table", "violet")}
+        ${card("target", "Target", t.target, "After fails", "fuchsia")}
+        ${card("hourglass", "Left", t.left, "Remaining", "cyan")}
+        ${card("alert", "Failed", t.fail, "Total failed count", "rose")}
+        ${card("users", "Agents", `${t.done}/${t.agents}`, "Complete", "lime")}
+        ${card("calendar", "MTD", state.personalMetrics.mtd, "Completed", "blue")}
+        ${card("calendarRange", "YTD", state.personalMetrics.ytd, "Completed", "amber")}
       </section>
 
       <main class="dashboard-grid">
@@ -649,19 +709,23 @@ function renderDashboard() {
       </main>
 
       <footer class="footer">
-        <span>Weekly QA Counter v910.</span>
+        <span>Weekly QA Counter v1000.</span>
         <span>No ticket/customer data should be stored here.</span>
       </footer>
     </div>
+    <div id="toastHost" class="toast-host"></div>
   `;
 
   bind();
   updateClock();
   renderTrendChart();
+  animateStatCards();
 }
 
-function card(iconName, label, value, sub) {
-  return `<div class="stat-card"><div class="stat-icon">${icon(iconName, 18)}</div><div class="stat-label">${esc(label)}</div><div class="stat-value">${esc(value)}</div><div class="stat-sub">${esc(sub)}</div></div>`;
+function card(iconName, label, value, sub, colorKey = "violet") {
+  const numeric = typeof value === "number" || (typeof value === "string" && /^\d+$/.test(value));
+  const valueAttrs = numeric ? ` data-animate="true" data-value="${esc(value)}"` : "";
+  return `<div class="stat-card"><div class="stat-icon c-${colorKey}">${icon(iconName, 18)}</div><div class="stat-label">${esc(label)}</div><div class="stat-value"${valueAttrs}>${numeric ? "0" : esc(value)}</div><div class="stat-sub">${esc(sub)}</div></div>`;
 }
 
 function userNote() {
@@ -692,7 +756,7 @@ function table(rows) {
       const txt = s.done ? "Done" : s.left <= 2 ? "Almost" : "Pending";
       return `<tr class="${s.done ? "done" : ""}">
         <td class="name-cell">${esc(a.agent?.name)}<span class="agent-sub">${esc(a.workstream?.name || "")}</span></td>
-        <td><span class="qa-badge">${esc(a.qa?.name)}</span></td>
+        <td>${qaBadge(a.qa?.name)}</td>
         ${DAYS.map((d) => `<td class="day-col"><div class="count-control">
           <button type="button" class="small secondary js-action" data-action="dec-count" data-assignment="${a.id}" data-date="${addDays(state.currentWeekStart, d[1])}">-</button>
           <span class="count-number">${dayCount(a, d[1])}</span>
@@ -849,7 +913,7 @@ function historyTable(rows) {
     <thead><tr><th>Agent</th><th>QA</th><th>Total</th><th>Fail</th><th>Target</th><th>Left</th><th>Status</th></tr></thead>
     <tbody>${rows.map((r) => {
       const s = stats(r, state.historySettings);
-      return `<tr class="${s.done ? "done" : ""}"><td class="name-cell">${esc(r.agent?.name)}<span class="agent-sub">${esc(r.workstream?.name || "")}</span></td><td><span class="qa-badge">${esc(r.qa?.name)}</span></td><td class="metric-strong">${s.total}</td><td class="metric-strong">${s.failCount}</td><td class="metric-strong">${s.target}</td><td class="metric-strong">${s.left}</td><td><span class="status-pill ${s.done ? "status-done" : "status-pending"}">${s.done ? "Done" : "Pending"}</span></td></tr>`;
+      return `<tr class="${s.done ? "done" : ""}"><td class="name-cell">${esc(r.agent?.name)}<span class="agent-sub">${esc(r.workstream?.name || "")}</span></td><td>${qaBadge(r.qa?.name)}</td><td class="metric-strong">${s.total}</td><td class="metric-strong">${s.failCount}</td><td class="metric-strong">${s.target}</td><td class="metric-strong">${s.left}</td><td><span class="status-pill ${s.done ? "status-done" : "status-pending"}">${s.done ? "Done" : "Pending"}</span></td></tr>`;
     }).join("")}</tbody>
   </table></div>`;
 }
@@ -955,7 +1019,7 @@ async function changeDailyCount(id, date, delta) {
   }
 
   const after = stats(a);
-  if (!before.done && after.done) fireConfetti();
+  if (!before.done && after.done) { fireConfetti(); showToast(`${a.agent?.name || "Agent"} hit target this week`); }
 
   await loadPersonalMetrics();
   renderDashboard();
@@ -975,7 +1039,7 @@ async function setFailCount(id, value) {
 
   if (a && before) {
     const after = stats(a);
-    if (!before.done && after.done) fireConfetti();
+    if (!before.done && after.done) { fireConfetti(); showToast(`${a.agent?.name || "Agent"} hit target this week`); }
   }
   renderDashboard();
 }
@@ -1065,7 +1129,7 @@ function updateClock() {
 
 function subscribeRealtime() {
   try {
-    supabaseClient.channel("qa-counter-v910")
+    supabaseClient.channel("qa-counter-v1000")
       .on("postgres_changes", { event: "*", schema: "public", table: "weekly_assignments" }, async () => { await refreshData(false); await loadAnalytics(); renderDashboard(); })
       .on("postgres_changes", { event: "*", schema: "public", table: "qa_counts" }, async () => { await refreshData(false); await loadPersonalMetrics(); await loadAnalytics(); renderDashboard(); })
       .subscribe();
