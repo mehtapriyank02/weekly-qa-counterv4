@@ -1,0 +1,65 @@
+.wrap {
+  position: relative;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--bg);
+  overflow: hidden;
+}
+.glow {
+  position: absolute;
+  top: -260px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 780px;
+  height: 520px;
+  background: radial-gradient(closest-side, var(--accent-soft), transparent 70%);
+  pointer-events: none;
+}
+
+.card {
+  position: relative;
+  width: min(420px, 100%);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-6) var(--space-5);
+  animation: rise var(--dur-slow) var(--ease) both;
+}
+
+.logoRow { margin-bottom: var(--space-5); }
+
+.mark {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius);
+  display: grid;
+  place-items: center;
+  background: var(--accent);
+  color: var(--on-accent);
+  margin-bottom: var(--space-4);
+}
+.mark.alert { background: var(--danger); color: #fff; }
+
+.card h1 { font-size: 23px; margin-bottom: 6px; }
+.card p { margin: 0; font-size: 14px; }
+
+.form { display: grid; gap: var(--space-3); margin-top: var(--space-5); }
+
+.errorBox {
+  margin-top: var(--space-3);
+  padding: 11px 13px;
+  border-radius: var(--radius-sm);
+  background: var(--danger-soft);
+  color: var(--danger);
+  border: 1px solid var(--danger-soft);
+  white-space: pre-wrap;
+  font-size: 13px;
+}
+
+.debug { font-size: 11.5px; color: var(--muted); margin-top: var(--space-3); }
+
+@keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }

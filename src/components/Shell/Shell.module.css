@@ -1,0 +1,13 @@
+.page {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: var(--space-5);
+  min-width: 0;
+}
+
+.transition { animation: sectionIn var(--dur-slow) var(--ease) both; }
+
+@keyframes sectionIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}

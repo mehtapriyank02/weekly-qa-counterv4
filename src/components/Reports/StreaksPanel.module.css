@@ -1,0 +1,24 @@
+.list { display: grid; gap: 6px; }
+.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+  font-size: 13.5px;
+  font-weight: 550;
+}
+.streak {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  color: var(--muted);
+}
+.streak.on { color: var(--warn); }
+.streak.on .icon { animation: flicker 1.8s ease-in-out infinite; }
+
+@keyframes flicker { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }

@@ -1,63 +1,64 @@
-# Weekly QA Counter v1000 - Vibrant
+# Verity
 
-Same features and data as every version before it (weekly counts/targets,
-fail tracking, leave/PTO coverage, admin assignment management, week
-history, trend chart, streaks, dark mode). This is a full visual overhaul -
-no Supabase queries, tables, or admin/QA logic changed, but almost every
-pixel of the UI did.
+(Formerly "Weekly QA Counter" — renamed. Same data and permission logic
+throughout: weekly counts/targets, fail tracking, leave/PTO coverage, admin
+assignment management, week history, trend chart, streaks, dark mode — no
+Supabase queries, tables, or admin/QA logic changed by any of the visual
+rebuilds below.)
 
-Third design pass. v900 was teal/soft-UI, v910 was Stripe-style clean
-light - both were called out as still looking "basic." This one goes bold:
+Built as React + Vite: a marketing-style homepage (with a "Meet our
+Auditors" section) in front of the actual dashboard, a dark, high-contrast
+visual system, and a real top navigation (Workstream hover menu → Meet our
+Auditors → Download → Reports → Manage) instead of tabs + a long sidebar.
 
-- **Color**: a violet-to-fuchsia gradient brand instead of one flat color,
-  used on the header, buttons, and logo. Each stat card gets its own hue
-  (violet/fuchsia/cyan/rose/lime/blue/amber) instead of one repeated tint.
-- **Avatars**: every QA member now gets a consistent color (hashed from
-  their name) that shows up as a small initials circle next to their name
-  everywhere - the table, the trend chart lines, the streaks list. Same
-  person, same color, everywhere in the app.
-- **Shapes**: chunkier rounded corners (14-24px), colored soft shadows
-  (tinted violet instead of plain gray) instead of flat/sharp edges.
-- **Motion, for real this time**:
-  - Stat card numbers count up from 0 on load/refresh instead of just
-    appearing.
-  - Buttons have a bouncy overshoot press (`cubic-bezier(.34,1.56,.64,1)`)
-    instead of a flat scale.
-  - The header gradient slowly shifts on a 10s loop.
-  - The streak flame flickers when a streak is active.
-  - A "Done" status pill pops in with a little bounce the moment a row
-    completes.
-  - A toast notification ("Kiran hit target this week") now appears
-    alongside the confetti burst when an agent hits target.
-  - Everything still respects `prefers-reduced-motion` - all of the above
-    turns off for anyone with that OS setting on.
-- **Dark mode**: rebuilt again to match - deep violet-black instead of
-  navy or teal-black, same vivid accent colors carried through.
-
-Everything else - icons (no emoji), focus rings, touch targets, tabular
-numbers, all admin/QA permission logic - carries over unchanged.
+Notable fixes/additions along the way:
+- **Agents can be moved between workstreams**, and **hidden agents can be
+  viewed and restored** (Manage → Agents) — previously hiding an agent was a
+  dead end with no way back.
+- The stat-card grid no longer forces the whole page to scroll horizontally;
+  only the data table scrolls on its own when it needs to.
+- The daily count control is a clear capsule stepper (distinct minus/plus
+  zones, count in its own cell) instead of a "−" button that looked
+  identical to the number next to it.
+- **Download** exports the current week's visible table as a CSV.
+- The QA column is hidden on a QA member's own table view (every row is
+  trivially their own name there) — still shown for admins viewing everyone.
 
 Config is already filled in with your Supabase project
-(`gvporifcjbenmhuewzqb.supabase.co`) and anon key, so you should not need to
-edit `config.js` unless you're pointing this at a different Supabase project.
+(`gvporifcjbenmhuewzqb.supabase.co`) and anon key, so you shouldn't need to
+edit `src/lib/config.js` unless you're pointing this at a different Supabase
+project.
 
 ## How many weeks the analytics look back
 
-Open `app.js` and find this near the top:
+Open `src/lib/helpers.js` and find this near the top:
 
 ```js
-const ANALYTICS_WEEKS = 12;
+export const ANALYTICS_WEEKS = 12;
 ```
 
 Change `12` to whatever lookback you want (e.g. `26` for ~6 months). No SQL
 changes needed either way.
 
-## Setup
+## Local development
 
-This repo is already wired to GitHub Pages - push to `main` and the live
-site updates automatically within a minute or two. A hard refresh
-(Ctrl+Shift+R) clears any cached old version if a refresh alone doesn't
-show the change.
+```
+npm install
+npm run dev      # local dev server
+npm run build    # production build into dist/
+npm run preview  # serve the production build locally
+```
+
+## Deployment (GitHub Pages via GitHub Actions)
+
+This has a build step (Vite), so plain "serve the repo root" GitHub Pages
+doesn't work. `.github/workflows/deploy.yml` builds the app and deploys
+`dist/` on every push to `main`.
+
+**One-time setup on GitHub**: go to the repo's **Settings → Pages** and
+change **Source** from "Deploy from a branch" to **"GitHub Actions"**. After
+that, pushing to `main` builds and deploys automatically — no more manual
+branch/folder configuration.
 
 For a fresh Supabase project only: open Supabase -> SQL Editor -> paste in
 `supabase-setup-v700.sql` -> Run. It's safe to re-run on a project that
